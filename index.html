@@ -20,7 +20,6 @@
             color: white;
             font-family: 'Orbitron', sans-serif;
             overflow: hidden;
-            /* Solución definitiva para las barras superior e inferior de los navegadores móviles */
             height: 100vh;
             height: 100dvh;
             width: 100vw;
@@ -28,7 +27,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            touch-action: none;
+            touch-action: none; /* Previene pull-to-refresh en móviles */
         }
 
         #spaceCanvas {
@@ -80,7 +79,7 @@
             font-weight: 900;
         }
 
-        /* Esfera Electrónica: Burbuja moderna en tonos rojo/rosa */
+        /* Esfera Electrónica */
         .electronic-planet {
             position: relative;
             width: 60vmin;
@@ -93,7 +92,6 @@
             justify-content: center;
             align-items: center;
             
-            /* Degradado de burbuja cristalina + Patrón de puntos limpios radiales (Rojo y Rosa) */
             background: radial-gradient(circle at 35% 35%, rgba(255, 0, 128, 0.25), rgba(12, 2, 6, 0.95)),
                         radial-gradient(rgba(255, 50, 150, 0.35) 1.5px, transparent 1.5px);
             background-size: 100% 100%, 24px 24px;
@@ -104,13 +102,14 @@
                 inset 0 0 80px rgba(200, 0, 80, 0.3);
             border: 2px solid rgba(255, 0, 128, 0.35);
             will-change: background-position;
+            touch-action: none;
         }
 
         .electronic-planet:active {
             cursor: grabbing;
         }
 
-        /* Anillo orbital holográfico exterior */
+        /* Anillo orbital */
         .electronic-planet::before {
             content: '';
             position: absolute;
@@ -126,7 +125,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Número Central Grueso y Fusionado */
         .class-number {
             font-size: 26vmin;
             font-weight: 900;
@@ -141,7 +139,6 @@
             z-index: 10;
         }
 
-        /* Botón de Acceso Adaptado */
         .access-btn {
             position: absolute;
             bottom: 10vh;
@@ -170,9 +167,10 @@
             position: absolute;
             bottom: 3vh;
             font-size: 0.7rem;
-            color: #755;
+            color: #ff3399;
             font-family: monospace;
             letter-spacing: 1px;
+            transition: opacity 1s;
         }
     </style>
 </head>
@@ -181,7 +179,6 @@
     <canvas id="spaceCanvas"></canvas>
 
     <div class="hologram-container">
-        <!-- Selector de Idioma -->
         <div class="system-status">
             <span class="lang-tab active" id="tabEn" onclick="setLanguage('EN')">INGLÉS</span>
             <span class="lang-tab" id="tabIt" onclick="setLanguage('IT')">ITALIANO</span>
@@ -196,6 +193,7 @@
     </div>
 
     <script>
+        // --- IDIOMAS ---
         let currentLang = 'EN';
         function setLanguage(lang) {
             currentLang = lang;
@@ -209,38 +207,45 @@
             if (currentLang === 'EN') {
                 btn.innerText = `INICIAR CLASE ${currentClass}`;
             } else {
-                btn.innerText = `INIZIA CLASSE ${currentClass}`;
+                // Usando "LEZIONE" en italiano suena mucho más natural para clases de idiomas
+                btn.innerText = `INIZIA LEZIONE ${currentClass}`;
             }
         }
 
-        // --- DETECCIÓN AUTOMÁTICA DE CLASES ---
-        let maxAvailableClass = 1;
-        const maxLimit = 365;
+        // --- DETECCIÓN DE CLASES (CORREGIDA PARA ENTORNO LOCAL) ---
+        // Ponemos un límite por defecto alto por si falla el fetch en archivos locales
+        let maxAvailableClass = 100; 
         const statusText = document.getElementById('statusText');
 
         async function checkAvailableClasses() {
-            let checking = true;
-            let currentCheck = 2;
-            while (checking && currentCheck <= maxLimit) {
-                try {
-                    const response = await fetch(`class${currentCheck}.html`, { method: 'HEAD' });
-                    if (response.ok) {
-                        maxAvailableClass = currentCheck;
-                        currentCheck++;
-                    } else {
+            // Si estamos en un servidor web real, intentamos contar exacto.
+            if (window.location.protocol.startsWith('http')) {
+                let checking = true;
+                let currentCheck = 1;
+                while (checking && currentCheck <= 365) {
+                    try {
+                        const response = await fetch(`class${currentCheck}.html`, { method: 'HEAD' });
+                        if (response.ok) {
+                            maxAvailableClass = currentCheck;
+                            currentCheck++;
+                        } else {
+                            checking = false;
+                        }
+                    } catch {
                         checking = false;
                     }
-                } catch {
-                    checking = false;
                 }
+                statusText.innerText = `CLASES ACTIVAS: ${maxAvailableClass}`;
+            } else {
+                // Si se abre como archivo local (file:///)
+                statusText.innerText = `MODO LOCAL ACTIVO`;
             }
-            statusText.innerText = `CLASES ACTIVAS DISPONIBLES: ${maxAvailableClass}`;
-            statusText.style.color = '#ff3399';
-            setTimeout(() => { statusText.style.opacity = '0'; }, 4000);
+            
+            setTimeout(() => { statusText.style.opacity = '0'; }, 3000);
         }
         checkAvailableClasses();
 
-        // --- AUDIO DIGITAL ELEGANTE ---
+        // --- AUDIO DIGITAL ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         const audioCtx = new AudioContext();
 
@@ -259,7 +264,7 @@
             osc.stop(audioCtx.currentTime + 0.04);
         }
 
-        // --- MECÁNICA HUMANA DE MOVIMIENTO Y NÚMEROS ---
+        // --- MECÁNICA DE DESLIZAMIENTO ---
         const planet = document.getElementById('planet');
         const numberDisplay = document.getElementById('displayNumber');
 
@@ -274,12 +279,13 @@
         let texturePosX = 0;
         let texturePosY = 0;
         
-        const threshold = 30; // Distancia en píxeles para cambiar de número de forma fluida
+        const threshold = 35; // Suavizado de sensibilidad
 
         function changeClassBy(amount) {
-            let next = currentClass + amount;
+            let next = currentClass - amount; // Invertido para que al arrastrar hacia arriba avance (más natural)
             if (next < 1) next = 1;
             if (next > maxAvailableClass) next = maxAvailableClass;
+            
             if (next !== currentClass) {
                 currentClass = next;
                 numberDisplay.innerText = currentClass;
@@ -297,8 +303,9 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        function onPointerMove(x, y) {
+        function onPointerMove(x, y, event) {
             if (!isDragging) return;
+            if (event) event.preventDefault(); // Evita recargar en móviles
 
             const deltaX = x - lastX;
             const deltaY = y - lastY;
@@ -306,7 +313,7 @@
             velocityX = deltaX;
             velocityY = deltaY;
 
-            const primaryMovement = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+            const primaryMovement = Math.abs(deltaY) > Math.abs(deltaX) ? deltaY : deltaX;
             accumulatedDelta += primaryMovement;
 
             texturePosX += deltaX * 0.4;
@@ -327,7 +334,7 @@
             if (!isDragging) return;
             isDragging = false;
 
-            let currentVelocity = Math.abs(velocityX) > Math.abs(velocityY) ? velocityX : velocityY;
+            let currentVelocity = Math.abs(velocityY) > Math.abs(velocityX) ? velocityY : velocityX;
             let momentum = currentVelocity * 0.75;
 
             function applyInertia() {
@@ -352,27 +359,31 @@
             }
         }
 
-        // Eventos táctiles y de ratón
-        planet.addEventListener('touchstart', e => onPointerStart(e.touches[0].clientX, e.touches[0].clientY));
-        window.addEventListener('touchmove', e => { if(isDragging) onPointerMove(e.touches[0].clientX, e.touches[0].clientY); });
+        // --- EVENTOS TÁCTILES Y MOUSE ---
+        planet.addEventListener('touchstart', e => onPointerStart(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
+        window.addEventListener('touchmove', e => { 
+            if(isDragging) onPointerMove(e.touches[0].clientX, e.touches[0].clientY, e); 
+        }, {passive: false});
         window.addEventListener('touchend', onPointerEnd);
 
         planet.addEventListener('mousedown', e => onPointerStart(e.clientX, e.clientY));
-        window.addEventListener('mousemove', e => { if(isDragging) onPointerMove(e.clientX, e.clientY); });
+        window.addEventListener('mousemove', e => { 
+            if(isDragging) onPointerMove(e.clientX, e.clientY, e); 
+        });
         window.addEventListener('mouseup', onPointerEnd);
 
-        // Enlaces de acceso
+        // --- NAVEGACIÓN ---
         document.getElementById('enterBtn').addEventListener('click', () => {
             window.location.href = `class${currentClass}.html`;
         });
-        planet.addEventListener('click', () => {
-            if (Math.abs(startX - lastX) < 5) {
+        planet.addEventListener('click', (e) => {
+            if (Math.abs(startX - lastX) < 5 && Math.abs(startY - lastY) < 5) {
                 window.location.href = `class${currentClass}.html`;
             }
         });
 
 
-        // --- FONDO DE ESTRELLAS Y GALAXIAS ---
+        // --- FONDO ESTELAR ---
         const canvas = document.getElementById('spaceCanvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -428,4 +439,3 @@
     </script>
 </body>
 </html>
-
