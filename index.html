@@ -1,1 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus Learning | Orbital Core</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #070304;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            /* Solución definitiva para las barras superior e inferior de los navegadores móviles */
+            height: 100vh;
+            height: 100dvh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            touch-action: none;
+        }
+
+        #spaceCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .hologram-container {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+        }
+
+        /* Selector de Idioma Dinámico */
+        .system-status {
+            position: absolute;
+            top: 4vh;
+            display: flex;
+            gap: 15px;
+            background: rgba(255, 0, 128, 0.05);
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 0, 128, 0.2);
+            backdrop-filter: blur(5px);
+        }
+
+        .lang-tab {
+            font-size: 0.85rem;
+            letter-spacing: 2px;
+            color: #775566;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .lang-tab.active {
+            color: #ff2a85;
+            text-shadow: 0 0 10px rgba(255, 42, 133, 0.8);
+            font-weight: 900;
+        }
+
+        /* Esfera Electrónica: Burbuja moderna en tonos rojo/rosa */
+        .electronic-planet {
+            position: relative;
+            width: 60vmin;
+            height: 60vmin;
+            max-width: 340px;
+            max-height: 340px;
+            border-radius: 50%;
+            cursor: grab;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+            /* Degradado de burbuja cristalina + Patrón de puntos limpios radiales (Rojo y Rosa) */
+            background: radial-gradient(circle at 35% 35%, rgba(255, 0, 128, 0.25), rgba(12, 2, 6, 0.95)),
+                        radial-gradient(rgba(255, 50, 150, 0.35) 1.5px, transparent 1.5px);
+            background-size: 100% 100%, 24px 24px;
+            
+            box-shadow: 
+                0 0 50px rgba(255, 0, 128, 0.25), 
+                inset 0 0 40px rgba(255, 0, 128, 0.4),
+                inset 0 0 80px rgba(200, 0, 80, 0.3);
+            border: 2px solid rgba(255, 0, 128, 0.35);
+            will-change: background-position;
+        }
+
+        .electronic-planet:active {
+            cursor: grabbing;
+        }
+
+        /* Anillo orbital holográfico exterior */
+        .electronic-planet::before {
+            content: '';
+            position: absolute;
+            width: 112%;
+            height: 112%;
+            border-radius: 50%;
+            border: 1px dashed rgba(255, 0, 128, 0.15);
+            animation: spinRing 25s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes spinRing {
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Número Central Grueso y Fusionado */
+        .class-number {
+            font-size: 26vmin;
+            font-weight: 900;
+            color: #ffe0eb;
+            text-shadow: 
+                0 0 10px #ff0080, 
+                0 0 20px #ff0080, 
+                0 0 40px #cc0055, 
+                0 0 70px #990033;
+            mix-blend-mode: screen;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Botón de Acceso Adaptado */
+        .access-btn {
+            position: absolute;
+            bottom: 10vh;
+            padding: 12px 30px;
+            background: rgba(255, 0, 128, 0.1);
+            border: 1px solid #ff0080;
+            color: #ff3399;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            border-radius: 8px;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            text-shadow: 0 0 5px #ff0080;
+            box-shadow: 0 0 15px rgba(255, 0, 128, 0.2);
+            transition: all 0.2s;
+        }
+
+        .access-btn:hover, .access-btn:active {
+            background: rgba(255, 0, 128, 0.3);
+            box-shadow: 0 0 30px rgba(255, 0, 128, 0.6);
+            transform: scale(1.05);
+        }
+
+        #statusText {
+            position: absolute;
+            bottom: 3vh;
+            font-size: 0.7rem;
+            color: #755;
+            font-family: monospace;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="spaceCanvas"></canvas>
+
+    <div class="hologram-container">
+        <!-- Selector de Idioma -->
+        <div class="system-status">
+            <span class="lang-tab active" id="tabEn" onclick="setLanguage('EN')">INGLÉS</span>
+            <span class="lang-tab" id="tabIt" onclick="setLanguage('IT')">ITALIANO</span>
+        </div>
+        
+        <div class="electronic-planet" id="planet">
+            <div class="class-number" id="displayNumber">1</div>
+        </div>
+
+        <button class="access-btn" id="enterBtn">INICIAR CLASE 1</button>
+        <div id="statusText">Escaneando archivos locales...</div>
+    </div>
+
+    <script>
+        let currentLang = 'EN';
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.getElementById('tabEn').classList.toggle('active', lang === 'EN');
+            document.getElementById('tabIt').classList.toggle('active', lang === 'IT');
+            updateButtonText();
+        }
+
+        function updateButtonText() {
+            const btn = document.getElementById('enterBtn');
+            if (currentLang === 'EN') {
+                btn.innerText = `INICIAR CLASE ${currentClass}`;
+            } else {
+                btn.innerText = `INIZIA CLASSE ${currentClass}`;
+            }
+        }
+
+        // --- DETECCIÓN AUTOMÁTICA DE CLASES ---
+        let maxAvailableClass = 1;
+        const maxLimit = 365;
+        const statusText = document.getElementById('statusText');
+
+        async function checkAvailableClasses() {
+            let checking = true;
+            let currentCheck = 2;
+            while (checking && currentCheck <= maxLimit) {
+                try {
+                    const response = await fetch(`class${currentCheck}.html`, { method: 'HEAD' });
+                    if (response.ok) {
+                        maxAvailableClass = currentCheck;
+                        currentCheck++;
+                    } else {
+                        checking = false;
+                    }
+                } catch {
+                    checking = false;
+                }
+            }
+            statusText.innerText = `CLASES ACTIVAS DISPONIBLES: ${maxAvailableClass}`;
+            statusText.style.color = '#ff3399';
+            setTimeout(() => { statusText.style.opacity = '0'; }, 4000);
+        }
+        checkAvailableClasses();
+
+        // --- AUDIO DIGITAL ELEGANTE ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioCtx = new AudioContext();
+
+        function playDigitalTick() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(1100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(350, audioCtx.currentTime + 0.04);
+            gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.04);
+        }
+
+        // --- MECÁNICA HUMANA DE MOVIMIENTO Y NÚMEROS ---
+        const planet = document.getElementById('planet');
+        const numberDisplay = document.getElementById('displayNumber');
+
+        let currentClass = 1;
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let lastX = 0, lastY = 0;
+        let velocityX = 0, velocityY = 0;
+        let inertiaId = null;
+        
+        let accumulatedDelta = 0;
+        let texturePosX = 0;
+        let texturePosY = 0;
+        
+        const threshold = 30; // Distancia en píxeles para cambiar de número de forma fluida
+
+        function changeClassBy(amount) {
+            let next = currentClass + amount;
+            if (next < 1) next = 1;
+            if (next > maxAvailableClass) next = maxAvailableClass;
+            if (next !== currentClass) {
+                currentClass = next;
+                numberDisplay.innerText = currentClass;
+                updateButtonText();
+                playDigitalTick();
+            }
+        }
+
+        function onPointerStart(x, y) {
+            isDragging = true;
+            startX = lastX = x;
+            startY = lastY = y;
+            accumulatedDelta = 0;
+            if (inertiaId) cancelAnimationFrame(inertiaId);
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function onPointerMove(x, y) {
+            if (!isDragging) return;
+
+            const deltaX = x - lastX;
+            const deltaY = y - lastY;
+            
+            velocityX = deltaX;
+            velocityY = deltaY;
+
+            const primaryMovement = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+            accumulatedDelta += primaryMovement;
+
+            texturePosX += deltaX * 0.4;
+            texturePosY += deltaY * 0.4;
+            planet.style.backgroundPosition = `${texturePosX}px ${texturePosY}px`;
+
+            if (Math.abs(accumulatedDelta) >= threshold) {
+                const steps = Math.trunc(accumulatedDelta / threshold);
+                changeClassBy(steps); 
+                accumulatedDelta %= threshold;
+            }
+
+            lastX = x;
+            lastY = y;
+        }
+
+        function onPointerEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+
+            let currentVelocity = Math.abs(velocityX) > Math.abs(velocityY) ? velocityX : velocityY;
+            let momentum = currentVelocity * 0.75;
+
+            function applyInertia() {
+                if (Math.abs(momentum) > 0.4) {
+                    texturePosX += momentum * 0.3;
+                    texturePosY += momentum * 0.3;
+                    planet.style.backgroundPosition = `${texturePosX}px ${texturePosY}px`;
+
+                    accumulatedDelta += momentum;
+                    if (Math.abs(accumulatedDelta) >= threshold) {
+                        const steps = Math.trunc(accumulatedDelta / threshold);
+                        changeClassBy(steps);
+                        accumulatedDelta %= threshold;
+                    }
+
+                    momentum *= 0.92;
+                    inertiaId = requestAnimationFrame(applyInertia);
+                }
+            }
+            if (Math.abs(currentVelocity) > 1.5) {
+                inertiaId = requestAnimationFrame(applyInertia);
+            }
+        }
+
+        // Eventos táctiles y de ratón
+        planet.addEventListener('touchstart', e => onPointerStart(e.touches[0].clientX, e.touches[0].clientY));
+        window.addEventListener('touchmove', e => { if(isDragging) onPointerMove(e.touches[0].clientX, e.touches[0].clientY); });
+        window.addEventListener('touchend', onPointerEnd);
+
+        planet.addEventListener('mousedown', e => onPointerStart(e.clientX, e.clientY));
+        window.addEventListener('mousemove', e => { if(isDragging) onPointerMove(e.clientX, e.clientY); });
+        window.addEventListener('mouseup', onPointerEnd);
+
+        // Enlaces de acceso
+        document.getElementById('enterBtn').addEventListener('click', () => {
+            window.location.href = `class${currentClass}.html`;
+        });
+        planet.addEventListener('click', () => {
+            if (Math.abs(startX - lastX) < 5) {
+                window.location.href = `class${currentClass}.html`;
+            }
+        });
+
+
+        // --- FONDO DE ESTRELLAS Y GALAXIAS ---
+        const canvas = document.getElementById('spaceCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let stars = [];
+
+        function initCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            stars = [];
+            for (let i = 0; i < 300; i++) {
+                stars.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    radius: Math.random() * 1.5,
+                    alpha: Math.random(),
+                    speed: Math.random() * 0.25 + 0.05
+                });
+            }
+        }
+
+        function animateSpace() {
+            ctx.clearRect(0, 0, width, height);
+            
+            let bgGrad = ctx.createRadialGradient(width/2, height/2, 40, width/2, height/2, Math.max(width, height));
+            bgGrad.addColorStop(0, '#120509');
+            bgGrad.addColorStop(1, '#070304');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                ctx.globalAlpha = star.alpha;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                star.y -= star.speed;
+                star.alpha += (Math.random() - 0.5) * 0.04;
+                if(star.alpha < 0.1) star.alpha = 0.1;
+                if(star.alpha > 1) star.alpha = 1;
+
+                if (star.y < 0) {
+                    star.y = height;
+                    star.x = Math.random() * width;
+                }
+            });
+            requestAnimationFrame(animateSpace);
+        }
+
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+        animateSpace();
+    </script>
+</body>
+</html>
 
