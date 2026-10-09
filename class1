@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Entrenador IT & EN</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500;600&display=swap');
+
+        :root {
+            /* Paleta Rosita Moderno / Neón */
+            --bg-base: #14080e;
+            --card-surface: rgba(36, 15, 26, 0.95);
+            --text-main: #fce7f0;
+            --text-muted: #d9a3bd;
+            --accent: #ff2a85;
+            --accent-alt: #c800ff;
+            --success: #00ff88;
+            --error: #ff1a40;
+            --border: rgba(255, 42, 133, 0.25);
+            --glow: 0 0 15px rgba(255, 42, 133, 0.35);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: 
+                radial-gradient(circle at 50% 0%, rgba(255, 42, 133, 0.12), transparent 50%),
+                radial-gradient(circle at 50% 100%, rgba(200, 0, 255, 0.08), transparent 50%),
+                var(--bg-base);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100dvh;
+            width: 100vw;
+            padding: 4px;
+            overflow: hidden;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 400px;
+            height: 96dvh;
+            background: var(--card-surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0, 0.9), inset 0 0 20px rgba(255, 42, 133, 0.05);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 10px;
+            padding: 14px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* --- BARRA DE PROGRESO GLOBAL --- */
+        .global-progress {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,.05);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 5px;
+            display: none;
+            flex-shrink: 0;
+        }
+        .global-progress.active {
+            display: block;
+        }
+        .global-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-alt));
+            box-shadow: var(--glow);
+            border-radius: 10px;
+            transition: width 0.4s ease-out;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            gap: 12px;
+            animation: fadeIn .3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        h1, h2 {
+            font-family: 'Rajdhani', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .intro-screen {
+            align-items: center;
+            text-align: center;
+            gap: 14px;
+        }
+        .intro-screen h1 {
+            color: var(--text-main);
+            font-size: 1.8rem;
+            text-shadow: 0 2px 10px rgba(255, 42, 133, 0.5);
+            margin-bottom: 5px;
+        }
+        .intro-screen h1 span {
+            color: var(--accent);
+        }
+        .intro-screen p {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            line-height: 1.5;
+            max-width: 290px;
+            margin: auto;
+        }
+
+        .name-input, .user-input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: #fff;
+            font-size: 0.95rem;
+            outline: none;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .name-input:focus, .user-input:focus {
+            border-color: var(--accent);
+            box-shadow: var(--glow);
+            background: rgba(255, 42, 133, 0.05);
+        }
+
+        .btn-main {
+            background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-family: 'Rajdhani', sans-serif;
+            letter-spacing: 1.5px;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(255, 42, 133, 0.3);
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn-main:active {
+            transform: scale(0.97);
+        }
+
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .mode-badge {
+            background: rgba(255, 42, 133, 0.1);
+            border: 1px solid var(--accent);
+            color: var(--text-main);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: var(--glow);
+            transition: all 0.2s;
+        }
+        .mode-badge:active {
+            transform: scale(0.9);
+        }
+
+        .hud-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            width: 100%;
+        }
+
+        .prompt-card {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 14px;
+            padding: 18px 14px;
+            border-left: 4px solid var(--accent);
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+        }
+
+        .prompt-tag {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .target-sentence {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.4;
+        }
+
+        .hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-top: 8px;
+            display: none;
+            border-top: 1px dashed var(--border);
+            padding-top: 8px;
+            width: 100%;
+        }
+
+        .feedback-box {
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.8rem;
+            display: none;
+            line-height: 1.4;
+            width: 100%;
+        }
+        .feedback-box.success {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            display: block;
+        }
+        .feedback-box.error {
+            background: rgba(255, 26, 64, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(255, 26, 64, 0.4);
+            display: block;
+        }
+        .correct-answer-text {
+            display: inline-block;
+            font-size: 0.9rem;
+            color: #fff;
+            font-weight: bold;
+            margin-top: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .vocab-word {
+            width: 100%;
+            padding: 14px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .vocab-word .main-word {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-shadow: var(--glow);
+        }
+        .vocab-word .sub-word {
+            font-size: 1.1rem;
+            color: #fff;
+            margin-top: 4px;
+        }
+        .vocab-word .hint-word {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        .stats-screen {
+            text-align: center;
+        }
+        .stats-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 12px;
+            border: 1px solid var(--border);
+            width: 100%;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            font-size: 0.8rem;
+        }
+        .stat-row:last-child {
+            border: none;
+        }
+        .stat-value {
+            font-weight: bold;
+            color: var(--accent);
+        }
+        .stat-value.green {
+            color: var(--success);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.96) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- ========================= BARRA DE PROGRESO GLOBAL ========================= -->
+    <div id="global-progress" class="global-progress">
+        <div id="global-progress-fill" class="global-progress-fill"></div>
+    </div>
+
+    <!-- ========================= INICIO ========================= -->
+    <div id="screen-intro" class="screen intro-screen active">
+        <div>
+            <h1>Master <span>IT & EN</span></h1>
+            <p>
+                Domina primero el vocabulario clave.<br>
+                Luego, conquista las oraciones alternando entre Italiano e Inglés.
+            </p>
+        </div>
+        <input type="text" id="input-name" class="name-input" placeholder="Ingresa tu nombre..." autocomplete="off">
+        <button class="btn-main" onclick="startApp()">
+            Comenzar Desafío ➔
+        </button>
+    </div>
+
+    <!-- ========================= VOCABULARIO ========================= -->
+    <div id="screen-vocab" class="screen">
+        <div class="game-header">
+            <h2 style="font-size:0.9rem;color:var(--accent)">Fase 1 · Vocabulario</h2>
+            <span id="vocab-progress" style="font-size:0.7rem;color:var(--text-muted)">0/0</span>
+        </div>
+        
+        <div class="prompt-card">
+            <div class="prompt-tag">Aprende estas palabras</div>
+            <div class="vocab-word">
+                <div class="main-word" id="vocab-it"></div>
+                <div class="sub-word" id="vocab-en"></div>
+                <div class="hint-word" id="vocab-es"></div>
+            </div>
+        </div>
+
+        <button class="btn-main" onclick="nextVocabulary()" id="vocab-btn">
+            Ya la aprendí ➔
+        </button>
+    </div>
+
+    <!-- ========================= ORACIONES ========================= -->
+    <div id="screen-game" class="screen">
+        <div class="game-header">
+            <h2 style="font-size:0.9rem;color:var(--accent)">Fase 2 · Oraciones</h2>
+            <button class="mode-badge" onclick="toggleLanguageMode()" id="mode-toggle-btn">
+                IT ➔ EN
+            </button>
+        </div>
+
+        <div class="hud-stats">
+            <span id="hud-progress">Progreso: 0/10</span>
+            <span id="hud-streak">Racha: 0/3</span>
+        </div>
+
+        <div class="prompt-card">
+            <div class="prompt-tag" id="label-instruction">Traduce al Inglés:</div>
+            <div class="target-sentence" id="display-target"></div>
+            <div class="hint" id="display-hint"></div>
+        </div>
+
+        <div id="feedback-box" class="feedback-box"></div>
+
+        <div class="action-panel">
+            <input type="text" id="user-input" class="user-input" placeholder="Escribe tu traducción..." autocomplete="off">
+            <button class="btn-main" id="action-btn" onclick="handleAction()" style="margin-top: 10px;">
+                Comprobar
+            </button>
+        </div>
+    </div>
+
+    <!-- ========================= ESTADÍSTICAS ========================= -->
+    <div id="screen-stats" class="screen stats-screen">
+        <div>
+            <h2 style="color:var(--success);font-size:1.2rem;text-shadow: 0 0 10px rgba(0,255,136,0.3);">¡Misión Cumplida!</h2>
+            <p id="final-greeting" style="font-size:0.8rem;color:var(--text-muted);margin-top:5px;"></p>
+        </div>
+
+        <div class="stats-card">
+            <div style="text-align:center; font-family:'Rajdhani'; font-weight:700; color:var(--text-main); margin-bottom:8px; font-size:0.85rem; letter-spacing: 1px;">
+                ⚡ RESUMEN DE RENDIMIENTO ⚡
+            </div>
+            <div class="stat-row">
+                <span>Tiempo total:</span>
+                <span class="stat-value" id="stat-time">00:00</span>
+            </div>
+            <div class="stat-row">
+                <span>Precisión global:</span>
+                <span class="stat-value green" id="stat-accuracy">0%</span>
+            </div>
+            <div class="stat-row">
+                <span>Errores:</span>
+                <span class="stat-value" id="stat-errors" style="color:var(--error);">0</span>
+            </div>
+        </div>
+
+        <button class="btn-main" onclick="location.reload()">
+            Jugar de Nuevo ➔
+        </button>
+    </div>
+
+</div>
+
+<script>
+    /* =========================================================
+       BASE DE DATOS (NUEVAS ORACIONES - IT / EN / ES)
+    ========================================================= */
+    const database = [
+        { es: "Oye, he viajado por muchos lugares.", it: "Ehi, ho viaggiato in molti posti.", en: "Hey, I have traveled to many places." },
+        { es: "Tengo muchas historias de este mundo.", it: "Ho molte storie di questo mondo.", en: "I have many stories from this world." },
+        { es: "Pero te lo digo en serio, tú eres mejor.", it: "Ma te lo dico sul serio, tu sei migliore.", en: "But I am telling you honestly, you are better." },
+        { es: "Si tú hablas, me siento muy bien.", it: "Se tu parli, mi sento molto bene.", en: "If you speak, I feel very good." },
+        { es: "Ya no necesito ir a ningún otro sitio.", it: "Non ho più bisogno di andare altrove.", en: "I don't need to go anywhere else anymore." },
+        { es: "Porque me gusta muchísimo estar contigo.", it: "Perché mi piace tantissimo stare con te.", en: "Because I really like being with you." },
+        { es: "Eres la mujer más inteligente que conozco.", it: "Sei la donna più intelligente che conosco.", en: "You are the smartest woman I know." },
+        { es: "Y me haces sonreír siempre.", it: "E mi fai sempre sorridere.", en: "And you always make me smile." },
+        { es: "Quiero quedarme a tu lado hoy y mañana.", it: "Voglio rimanere al tuo fianco oggi e domani.", en: "I want to stay by your side today and tomorrow." },
+        { es: "Me gustas mucho, así de fácil.", it: "Mi piaci molto, semplice.", en: "I like you a lot, it's that simple." }
+    ];
+
+    /* =========================================================
+       VOCABULARIO INTELIGENTE (EXTRAÍDO DE LAS ORACIONES)
+       Formato: [Italiano, Inglés, Pista en Español]
+    ========================================================= */
+    const vocabulary = [
+        ["viaggiare", "to travel", "viajar"],
+        ["il posto", "the place", "el lugar"],
+        ["la storia", "the story", "la historia"],
+        ["il mondo", "the world", "el mundo"],
+        ["sul serio", "honestly", "en serio / honestamente"],
+        ["migliore", "better", "mejor"],
+        ["parlare", "to speak", "hablar"],
+        ["sentirsi", "to feel", "sentirse"],
+        ["altrove", "anywhere else", "a otro sitio / a otra parte"],
+        ["tantissimo", "a lot / extremely", "muchísimo"],
+        ["intelligente", "smart / intelligent", "inteligente"],
+        ["la donna", "the woman", "la mujer"],
+        ["sorridere", "to smile", "sonreír"],
+        ["rimanere", "to stay", "quedarse"],
+        ["al tuo fianco", "by your side", "a tu lado"],
+        ["oggi e domani", "today and tomorrow", "hoy y mañana"],
+        ["piacere", "to like", "gustar"],
+        ["semplice", "simple", "así de fácil / simple"]
+    ];
+
+    /* =========================================================
+       VARIABLES
+    ========================================================= */
+    let playerName = "";
+    let vocabIndex = 0;
+    
+    let pool = [];
+    let activeGroup = [];
+    let currentItem = null;
+    let forcedItem = null;
+    let lastItem = null;
+    
+    let streaks = {};
+    let completedCount = 0;
+    
+    let isItToEn = true; // true = Lee Italiano, escribe Inglés. false = Lee Inglés, escribe Italiano.
+    let gameState = "QUESTION";
+    
+    let startTime = 0;
+    let totalAttempts = 0;
+    let totalErrors = 0;
+
+    /* =========================================================
+       BARRA DE PROGRESO GLOBAL
+    ========================================================= */
+    function updateGlobalProgress() {
+        const totalSteps = vocabulary.length + database.length;
+        let currentStep = 0;
+        
+        if (document.getElementById("screen-vocab").classList.contains("active")) {
+            currentStep = vocabIndex;
+        } else if (document.getElementById("screen-game").classList.contains("active")) {
+            currentStep = vocabulary.length + completedCount;
+        } else if (document.getElementById("screen-stats").classList.contains("active")) {
+            currentStep = totalSteps;
+        }
+        
+        const percentage = (currentStep / totalSteps) * 100;
+        document.getElementById("global-progress-fill").style.width = percentage + "%";
+    }
+
+    function switchScreen(id) {
+        document.querySelectorAll(".screen").forEach(screen => screen.classList.remove("active"));
+        document.getElementById(id).classList.add("active");
+        updateGlobalProgress();
+    }
+
+    /* =========================================================
+       INICIO
+    ========================================================= */
+    function startApp() {
+        const input = document.getElementById("input-name").value.trim();
+        playerName = input === "" ? "Estudiante" : input;
+        
+        startTime = Date.now();
+        totalAttempts = 0;
+        totalErrors = 0;
+        
+        pool = [...database];
+        activeGroup = [];
+        completedCount = 0;
+        forcedItem = null;
+        lastItem = null;
+        
+        database.forEach((_, index) => { streaks[index] = 0; });
+        vocabIndex = 0;
+
+        document.getElementById("global-progress").classList.add("active");
+        switchScreen("screen-vocab");
+        showVocabulary();
+    }
+
+    /* =========================================================
+       FASE 1 — VOCABULARIO
+    ========================================================= */
+    function showVocabulary() {
+        updateGlobalProgress();
+        if (vocabIndex >= vocabulary.length) {
+            startSentencePhase();
+            return;
+        }
+        
+        const item = vocabulary[vocabIndex];
+        document.getElementById("vocab-it").textContent = item[0];
+        document.getElementById("vocab-en").textContent = item[1];
+        document.getElementById("vocab-es").textContent = `(Español: ${item[2]})`;
+        
+        document.getElementById("vocab-progress").textContent = `${vocabIndex + 1}/${vocabulary.length}`;
+    }
+
+    function nextVocabulary() {
+        vocabIndex++;
+        if (vocabIndex >= vocabulary.length) {
+            startSentencePhase();
+            return;
+        }
+        showVocabulary();
+    }
+
+    /* =========================================================
+       FASE 2 — ORACIONES
+    ========================================================= */
+    function startSentencePhase() {
+        switchScreen("screen-game");
+        loadNextQuestion();
+    }
+
+    function refillActiveGroup() {
+        while (activeGroup.length < 3 && pool.length > 0) {
+            activeGroup.push(pool.shift());
+        }
+    }
+
+    function chooseNextItem() {
+        if (forcedItem !== null && activeGroup.includes(forcedItem)) {
+            const item = forcedItem;
+            forcedItem = null;
+            return item;
+        }
+        let candidates = activeGroup.filter(item => item !== lastItem);
+        if (candidates.length === 0) candidates = [...activeGroup];
+        
+        const randomIndex = Math.floor(Math.random() * candidates.length);
+        return candidates[randomIndex];
+    }
+
+    function loadNextQuestion() {
+        gameState = "QUESTION";
+        
+        const btn = document.getElementById("action-btn");
+        btn.textContent = "Comprobar";
+        btn.style.background = "";
+        
+        const feedback = document.getElementById("feedback-box");
+        feedback.className = "feedback-box";
+        feedback.style.display = "none";
+        
+        const hint = document.getElementById("display-hint");
+        hint.style.display = "none";
+        
+        refillActiveGroup();
+        if (activeGroup.length === 0) {
+            finishGame();
+            return;
+        }
+        
+        currentItem = chooseNextItem();
+        const origIdx = database.indexOf(currentItem);
+        
+        if (isItToEn) {
+            document.getElementById("label-instruction").textContent = "Traduce al Inglés:";
+            document.getElementById("display-target").textContent = currentItem.it;
+        } else {
+            document.getElementById("label-instruction").textContent = "Traduce al Italiano:";
+            document.getElementById("display-target").textContent = currentItem.en;
+        }
+        
+        document.getElementById("display-hint").textContent = `Pista en Español: ${currentItem.es}`;
+        document.getElementById("hud-streak").textContent = `Racha: ${streaks[origIdx]}/3`;
+        document.getElementById("hud-progress").textContent = `Progreso: ${completedCount}/${database.length}`;
+        
+        const input = document.getElementById("user-input");
+        input.value = "";
+        input.disabled = false;
+        setTimeout(() => input.focus(), 50);
+    }
+
+    function normalize(text) {
+        return text.trim().toLowerCase().normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "")
+            .replace(/\s+/g, " ");
+    }
+
+    function handleAction() {
+        if (gameState === "ERROR_WAIT" || gameState === "SUCCESS_WAIT") {
+            loadNextQuestion();
+            return;
+        }
+        evaluateAnswer();
+    }
+
+    function evaluateAnswer() {
+        if (!currentItem) return;
+        
+        const userVal = document.getElementById("user-input").value;
+        const correctVal = isItToEn ? currentItem.en : currentItem.it;
+        const origIdx = database.indexOf(currentItem);
+        
+        const feedback = document.getElementById("feedback-box");
+        const btn = document.getElementById("action-btn");
+        const input = document.getElementById("user-input");
+        
+        totalAttempts++;
+        input.disabled = true;
+        
+        if (normalize(userVal) === normalize(correctVal)) {
+            streaks[origIdx]++;
+            forcedItem = null;
+            lastItem = currentItem;
+            
+            if (streaks[origIdx] >= 3) {
+                feedback.innerHTML = `<strong>¡Excelente!</strong><br>Frase dominada.`;
+                activeGroup = activeGroup.filter(item => item !== currentItem);
+                completedCount++;
+                updateGlobalProgress();
+            } else {
+                feedback.innerHTML = `<strong>¡Correcto!</strong><br>Llevas ${streaks[origIdx]}/3 aciertos.`;
+            }
+            
+            feedback.className = "feedback-box success";
+            feedback.style.display = "block";
+            gameState = "SUCCESS_WAIT";
+            btn.textContent = "Siguiente ➔";
+            btn.style.background = "linear-gradient(135deg,#00e676,#00b35f)";
+            
+            setTimeout(() => {
+                if (gameState === "SUCCESS_WAIT") loadNextQuestion();
+            }, 1200);
+            
+        } else {
+            streaks[origIdx] = 0;
+            totalErrors++;
+            forcedItem = currentItem;
+            
+            document.getElementById("hud-streak").textContent = "Racha: 0/3";
+            document.getElementById("display-hint").style.display = "block";
+            
+            feedback.innerHTML = `
+                <div style="font-weight:700;margin-bottom:2px;">INCORRECTO</div>
+                La respuesta exacta es: <br>
+                <span class="correct-answer-text">${correctVal}</span>
+                <span style="font-size:0.7rem;color:var(--text-main);display:block;margin-top:6px;">
+                    Repite esta misma oración ahora.
+                </span>
+            `;
+            
+            feedback.className = "feedback-box error";
+            feedback.style.display = "block";
+            gameState = "ERROR_WAIT";
+            btn.textContent = "Repetir ➔";
+            btn.style.background = "linear-gradient(135deg, var(--error), #cc0033)";
+        }
+    }
+
+    function toggleLanguageMode() {
+        isItToEn = !isItToEn;
+        document.getElementById("mode-toggle-btn").textContent = isItToEn ? "IT ➔ EN" : "EN ➔ IT";
+        if (gameState === "QUESTION") {
+            loadNextQuestion();
+        }
+    }
+
+    document.getElementById("user-input").addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            handleAction();
+        }
+    });
+
+    function fireConfetti() {
+        const duration = 3.5 * 1000;
+        const end = Date.now() + duration;
+        const colors = ['#ff2a85', '#c800ff', '#00ff88'];
+
+        (function frame() {
+            confetti({
+                particleCount: 3,
+                angle: 60,
+                spread: 55,
+                origin: { x: 0 },
+                colors: colors
+            });
+            confetti({
+                particleCount: 3,
+                angle: 120,
+                spread: 55,
+                origin: { x: 1 },
+                colors: colors
+            });
+
+            if (Date.now() < end) {
+                requestAnimationFrame(frame);
+            }
+        })();
+    }
+
+    function finishGame() {
+        switchScreen("screen-stats");
+        fireConfetti();
+        
+        document.getElementById("final-greeting").textContent = `¡Brillante, ${playerName}!`;
+        
+        const totalSecs = Math.floor((Date.now() - startTime) / 1000);
+        const minutes = Math.floor(totalSecs / 60);
+        const seconds = totalSecs % 60;
+        document.getElementById("stat-time").textContent = 
+            `${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+            
+        const accuracy = totalAttempts === 0 ? 100 : ((totalAttempts - totalErrors) / totalAttempts) * 100;
+        document.getElementById("stat-accuracy").textContent = accuracy.toFixed(1) + "%";
+        document.getElementById("stat-errors").textContent = totalErrors;
+    }
+</script>
+</body>
+</html>
