@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -27,7 +28,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            touch-action: none; /* Previene pull-to-refresh en móviles */
+            touch-action: none; /* Previene pull-to-refresh y scroll en móviles */
         }
 
         #spaceCanvas {
@@ -189,7 +190,7 @@
         </div>
 
         <button class="access-btn" id="enterBtn">INICIAR CLASE 1</button>
-        <div id="statusText">Escaneando archivos locales...</div>
+        <div id="statusText">Verificando archivos de clase...</div>
     </div>
 
     <script>
@@ -207,42 +208,44 @@
             if (currentLang === 'EN') {
                 btn.innerText = `INICIAR CLASE ${currentClass}`;
             } else {
-                // Usando "LEZIONE" en italiano suena mucho más natural para clases de idiomas
                 btn.innerText = `INIZIA LEZIONE ${currentClass}`;
             }
         }
 
-        // --- DETECCIÓN DE CLASES (CORREGIDA PARA ENTORNO LOCAL) ---
-        // Ponemos un límite por defecto alto por si falla el fetch en archivos locales
-        let maxAvailableClass = 100; 
+        // --- DETECCIÓN ESTRICTA DE CLASES EN GITHUB ---
+        // Empieza limitando al usuario estrictamente a la clase 1.
+        let maxAvailableClass = 1; 
         const statusText = document.getElementById('statusText');
 
         async function checkAvailableClasses() {
-            // Si estamos en un servidor web real, intentamos contar exacto.
-            if (window.location.protocol.startsWith('http')) {
-                let checking = true;
-                let currentCheck = 1;
-                while (checking && currentCheck <= 365) {
-                    try {
-                        const response = await fetch(`class${currentCheck}.html`, { method: 'HEAD' });
-                        if (response.ok) {
-                            maxAvailableClass = currentCheck;
-                            currentCheck++;
-                        } else {
-                            checking = false;
-                        }
-                    } catch {
+            let checking = true;
+            let currentCheck = 2; // Asumimos que class1.html siempre está.
+            
+            // Límite de seguridad de 1000 iteraciones
+            while (checking && currentCheck <= 1000) {
+                try {
+                    // Petición rápida solo para saber si el archivo existe (status 200 vs 404)
+                    const response = await fetch(`class${currentCheck}.html`, { method: 'HEAD' });
+                    
+                    if (response.ok) {
+                        // El archivo existe, ampliamos el límite permitido al usuario
+                        maxAvailableClass = currentCheck;
+                        currentCheck++;
+                    } else {
+                        // Error 404 (no existe), detenemos la búsqueda
                         checking = false;
                     }
+                } catch (e) {
+                    // Si hay error de red, asumimos que no hay más clases
+                    checking = false;
                 }
-                statusText.innerText = `CLASES ACTIVAS: ${maxAvailableClass}`;
-            } else {
-                // Si se abre como archivo local (file:///)
-                statusText.innerText = `MODO LOCAL ACTIVO`;
             }
             
+            statusText.innerText = `CLASES ONLINE: ${maxAvailableClass}`;
             setTimeout(() => { statusText.style.opacity = '0'; }, 3000);
         }
+        
+        // Ejecuta el escáner apenas carga la página
         checkAvailableClasses();
 
         // --- AUDIO DIGITAL ---
@@ -264,7 +267,7 @@
             osc.stop(audioCtx.currentTime + 0.04);
         }
 
-        // --- MECÁNICA DE DESLIZAMIENTO ---
+        // --- MECÁNICA DE DESLIZAMIENTO Y CLICS ---
         const planet = document.getElementById('planet');
         const numberDisplay = document.getElementById('displayNumber');
 
@@ -279,10 +282,12 @@
         let texturePosX = 0;
         let texturePosY = 0;
         
-        const threshold = 35; // Suavizado de sensibilidad
+        const threshold = 35; // Sensibilidad de arrastre
 
         function changeClassBy(amount) {
-            let next = currentClass - amount; // Invertido para que al arrastrar hacia arriba avance (más natural)
+            let next = currentClass - amount; 
+            
+            // Restringir rígidamente: no puede bajar de 1 ni subir más allá de las clases verificadas
             if (next < 1) next = 1;
             if (next > maxAvailableClass) next = maxAvailableClass;
             
@@ -294,6 +299,18 @@
             }
         }
 
+        // Navegación (Abrir la página)
+        function openCurrentClass() {
+            // Asegurarse de que no intente abrir algo fuera del límite por seguridad
+            if (currentClass <= maxAvailableClass) {
+                window.location.href = `class${currentClass}.html`;
+            }
+        }
+
+        // Clic en el botón de Iniciar
+        document.getElementById('enterBtn').addEventListener('click', openCurrentClass);
+
+        // Control de Puntero Universal (Soporta touch y mouse sin duplicar eventos)
         function onPointerStart(x, y) {
             isDragging = true;
             startX = lastX = x;
@@ -303,9 +320,8 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
-        function onPointerMove(x, y, event) {
+        function onPointerMove(x, y) {
             if (!isDragging) return;
-            if (event) event.preventDefault(); // Evita recargar en móviles
 
             const deltaX = x - lastX;
             const deltaY = y - lastY;
@@ -330,10 +346,19 @@
             lastY = y;
         }
 
-        function onPointerEnd() {
+        function onPointerEnd(x, y) {
             if (!isDragging) return;
             isDragging = false;
 
+            // Diferenciar si fue un clic o un arrastre:
+            const dist = Math.abs(x - startX) + Math.abs(y - startY);
+            if (dist < 5) {
+                // El movimiento fue nulo, es un clic
+                openCurrentClass();
+                return;
+            }
+
+            // Aplicar inercia si hubo deslizamiento
             let currentVelocity = Math.abs(velocityY) > Math.abs(velocityX) ? velocityY : velocityX;
             let momentum = currentVelocity * 0.75;
 
@@ -359,27 +384,23 @@
             }
         }
 
-        // --- EVENTOS TÁCTILES Y MOUSE ---
-        planet.addEventListener('touchstart', e => onPointerStart(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
-        window.addEventListener('touchmove', e => { 
-            if(isDragging) onPointerMove(e.touches[0].clientX, e.touches[0].clientY, e); 
-        }, {passive: false});
-        window.addEventListener('touchend', onPointerEnd);
-
-        planet.addEventListener('mousedown', e => onPointerStart(e.clientX, e.clientY));
-        window.addEventListener('mousemove', e => { 
-            if(isDragging) onPointerMove(e.clientX, e.clientY, e); 
+        // Asignación de Pointer Events
+        planet.addEventListener('pointerdown', e => {
+            planet.setPointerCapture(e.pointerId); // Retiene el enfoque en la esfera
+            onPointerStart(e.clientX, e.clientY);
         });
-        window.addEventListener('mouseup', onPointerEnd);
 
-        // --- NAVEGACIÓN ---
-        document.getElementById('enterBtn').addEventListener('click', () => {
-            window.location.href = `class${currentClass}.html`;
+        planet.addEventListener('pointermove', e => {
+            if (isDragging) onPointerMove(e.clientX, e.clientY);
         });
-        planet.addEventListener('click', (e) => {
-            if (Math.abs(startX - lastX) < 5 && Math.abs(startY - lastY) < 5) {
-                window.location.href = `class${currentClass}.html`;
-            }
+
+        planet.addEventListener('pointerup', e => {
+            planet.releasePointerCapture(e.pointerId);
+            onPointerEnd(e.clientX, e.clientY);
+        });
+
+        planet.addEventListener('pointercancel', e => {
+            isDragging = false;
         });
 
 
@@ -439,3 +460,4 @@
     </script>
 </body>
 </html>
+```
